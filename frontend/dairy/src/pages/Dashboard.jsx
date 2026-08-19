@@ -28,6 +28,7 @@ const Dashboard = () => {
   const [recentEntries, setRecentEntries] = useState([]);
 
   const user = authService.getCurrentUser();
+  const [ownerNameState, setOwnerNameState] = useState(user?.name || "Owner");
 
   useEffect(() => {
     // Redirect if not logged in or if role is client
@@ -43,6 +44,18 @@ const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
+        
+        // Sync user profile name dynamically from database to fix stale localStorage
+        try {
+          const freshUser = await userService.getById(user.id);
+          if (freshUser && freshUser.name) {
+            localStorage.setItem("milkflow_user", JSON.stringify(freshUser));
+            setOwnerNameState(freshUser.name);
+          }
+        } catch (e) {
+          console.error("Failed to sync current user profile:", e);
+        }
+
         // 1. Fetch Users
         const users = await userService.getAll();
         const suppliers = users.filter((u) => u.role === "supplier");
@@ -121,15 +134,18 @@ const Dashboard = () => {
                     <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider">
                       Owner Dashboard
                     </span>
-                    <h2 className="text-2xl font-bold mt-3">नमस्ते, {user?.name || "राजेश जी"}</h2>
-                    <p className="text-green-50 text-xs mt-1">डेयरी: MilkFlow</p>
+                    <h2 className="text-2xl font-bold mt-3">
+                      Hello, {ownerNameState ? (ownerNameState.toLowerCase().includes("admin") ? ownerNameState : `Admin ${ownerNameState}`) : "Admin"}
+                    </h2>
+                    <p className="text-green-50 text-xs mt-1">डेयरी: बालाजी दूध डेयरी</p>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white active:scale-95"
+                    className="flex items-center gap-1.5 py-2 px-3.5 bg-white/15 hover:bg-white/25 rounded-2xl transition-all text-xs font-extrabold text-white border border-white/10 active:scale-95 cursor-pointer shadow-sm"
                     title="Log Out"
                   >
-                    <FaSignOutAlt className="text-lg" />
+                    <FaSignOutAlt className="text-sm" />
+                    <span>Logout</span>
                   </button>
                 </div>
 

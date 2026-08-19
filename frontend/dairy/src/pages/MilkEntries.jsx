@@ -6,12 +6,14 @@ import PageContainer from "../components/PageContainer";
 import { authService, userService, milkService } from "../services/api";
 
 const MilkEntries = () => {
+  const formatSno = (sno) => sno ? sno.toString().padStart(3, '0') : '';
   const [users, setUsers] = useState([]);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Date filter for entries list
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
+  const [filterMilkType, setFilterMilkType] = useState("all");
 
   // Form states
   const [personId, setPersonId] = useState("");
@@ -27,6 +29,7 @@ const MilkEntries = () => {
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("8.5"); // default standard SNF
   const [selectedUser, setSelectedUser] = useState(null);
+  const [milkType, setMilkType] = useState("buffalo");
   const [formLoading, setFormLoading] = useState(false);
 
   const currentUser = authService.getCurrentUser();
@@ -63,6 +66,7 @@ const MilkEntries = () => {
     setPersonId(id);
     const user = users.find((u) => u.id === id);
     setSelectedUser(user || null);
+    setMilkType("buffalo"); // reset to default buffalo
     
     // Autofill fat if fixed rate to avoid prompt confusion
     if (user && user.milkRateType === "fixed") {
@@ -81,11 +85,20 @@ const MilkEntries = () => {
     let rate = 0;
     const qty = Number(quantity);
 
-    if (selectedUser.milkRateType === "fat") {
-      const fatVal = Number(fat) || 0;
-      rate = fatVal * (selectedUser.fatRate || 0);
+    if (selectedUser.role === "customer") {
+      if (milkType === "cow") {
+        rate = 45; // Cow milk default rate
+      } else {
+        rate = selectedUser.fixedRate || 65; // Buffalo milk default rate (custom fixedRate or 65)
+      }
     } else {
-      rate = selectedUser.fixedRate || 0;
+      // For suppliers
+      if (selectedUser.milkRateType === "fat") {
+        const fatVal = Number(fat) || 0;
+        rate = fatVal * (selectedUser.fatRate || 0);
+      } else {
+        rate = selectedUser.fixedRate || 0;
+      }
     }
 
     rate = Math.round(rate * 100) / 100;
@@ -112,6 +125,7 @@ const MilkEntries = () => {
         quantity: Number(quantity),
         fat: selectedUser?.milkRateType === "fat" ? Number(fat) : 0,
         snf: selectedUser?.milkRateType === "fat" ? Number(snf) : 0,
+        milkType: selectedUser?.role === "customer" ? milkType : "buffalo",
       });
 
       toast.success("दूध प्रविष्टि सफलतापूर्वक सहेजी गई!");
@@ -151,6 +165,11 @@ const MilkEntries = () => {
 
   const { rate: estRate, amount: estAmount } = getCalculatedRateAndAmount();
 
+  const filteredRecords = records.filter((r) => {
+    if (filterMilkType === "all") return true;
+    return r.milkType === filterMilkType;
+  });
+
   return (
     <>
       <Header />
@@ -173,14 +192,14 @@ const MilkEntries = () => {
             <form onSubmit={handleAddEntry} className="space-y-4">
               {/* Select Supplier/Customer */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 font-semibold">
                   नाम चुनें (Select Person)
                 </label>
                 <select
                   required
                   value={personId}
                   onChange={(e) => handleUserChange(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-700"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-slate-700 font-bold"
                 >
                   <option value="">-- नाम चुनें --</option>
                   <optgroup label="🐄 दूध देने वाले (Suppliers)">
@@ -188,7 +207,7 @@ const MilkEntries = () => {
                       .filter((u) => u.role === "supplier")
                       .map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.name} ({u.phone})
+                          {u.sno ? `#${formatSno(u.sno)} - ` : ""}{u.name} ({u.phone})
                         </option>
                       ))}
                   </optgroup>
@@ -197,12 +216,29 @@ const MilkEntries = () => {
                       .filter((u) => u.role === "customer")
                       .map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.name} ({u.phone})
+                          {u.sno ? `#${formatSno(u.sno)} - ` : ""}{u.name} ({u.phone})
                         </option>
                       ))}
                   </optgroup>
                 </select>
               </div>
+
+              {/* Milk Type Dropdown (only visible when a Customer is selected) */}
+              {selectedUser?.role === "customer" && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Milk Type (दूध का प्रकार)
+                  </label>
+                  <select
+                    value={milkType}
+                    onChange={(e) => setMilkType(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-green-500 font-bold text-slate-700"
+                  >
+                    <option value="buffalo">भैंस का दूध (Buffalo) - ₹{selectedUser.fixedRate || 65}/L</option>
+                    <option value="cow">गाय का दूध (Cow) - ₹45/L</option>
+                  </select>
+                </div>
+              )}
 
               {/* Date and Shift */}
               <div className="grid grid-cols-2 gap-3">
@@ -326,16 +362,31 @@ const MilkEntries = () => {
               </div>
 
               {/* Date Filter */}
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
-                  <FaCalendarAlt className="text-xs" />
-                </span>
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-green-500 text-gray-600"
-                />
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* Milk Type Filter select */}
+                <select
+                  value={filterMilkType}
+                  onChange={(e) => setFilterMilkType(e.target.value)}
+                  className="px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-green-500 text-slate-600 cursor-pointer"
+                >
+                  <option value="all">सभी दूध (All Milk)</option>
+                  <option value="buffalo">भैंस का दूध (Buffalo)</option>
+                  <option value="cow">गाय का दूध (Cow)</option>
+                </select>
+
+                {/* Date Filter input */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
+                    <FaCalendarAlt className="text-xs" />
+                  </span>
+                  <input
+                    type="date"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-green-500 text-gray-600"
+                  />
+                </div>
               </div>
             </div>
 
@@ -344,9 +395,9 @@ const MilkEntries = () => {
                 <div className="w-6 h-6 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-2 text-xs text-gray-400 font-semibold">लोड हो रहा है...</p>
               </div>
-            ) : records.length === 0 ? (
+            ) : filteredRecords.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">
-                इस तारीख ({filterDate}) को कोई दूध एंट्री दर्ज नहीं है।
+                इस फ़िल्टर या तारीख ({filterDate}) को कोई दूध एंट्री दर्ज नहीं है।
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -361,7 +412,7 @@ const MilkEntries = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {records.map((record) => (
+                    {filteredRecords.map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50/50">
                         <td className="py-3">
                           <div className="font-semibold text-gray-800">{record.personName}</div>
@@ -372,6 +423,12 @@ const MilkEntries = () => {
                               record.type === "supply" ? "text-green-600" : "text-blue-600"
                             }`}>
                               {record.type === "supply" ? "संकलन" : "बिक्री"}
+                            </span>
+                            <span className="h-1 w-1 bg-gray-300 rounded-full"></span>
+                            <span className={`font-bold px-1.5 py-0.2 rounded-full text-[9px] ${
+                              record.milkType === "cow" ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            }`}>
+                              {record.milkType === "cow" ? "गाय" : "भैंस"}
                             </span>
                           </div>
                         </td>

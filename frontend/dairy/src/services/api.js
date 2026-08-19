@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = `http://${window.location.hostname}:5000/api`;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -22,8 +22,8 @@ apiClient.interceptors.request.use(
 );
 
 export const authService = {
-  ownerLogin: async (phone, passcode) => {
-    const res = await apiClient.post("/auth/owner-login", { phone, passcode });
+  ownerLogin: async (name, phone, passcode) => {
+    const res = await apiClient.post("/auth/owner-login", { name, phone, passcode });
     if (res.data.token) {
       localStorage.setItem("milkflow_token", res.data.token);
       localStorage.setItem("milkflow_user", JSON.stringify(res.data.user));
@@ -38,6 +38,15 @@ export const authService = {
 
   verifyOtp: async (phone, otp) => {
     const res = await apiClient.post("/auth/verify-otp", { phone, otp });
+    if (res.data.token) {
+      localStorage.setItem("milkflow_token", res.data.token);
+      localStorage.setItem("milkflow_user", JSON.stringify(res.data.user));
+    }
+    return res.data;
+  },
+
+  clientLogin: async (phone, passcode) => {
+    const res = await apiClient.post("/auth/client-login", { phone, passcode });
     if (res.data.token) {
       localStorage.setItem("milkflow_token", res.data.token);
       localStorage.setItem("milkflow_user", JSON.stringify(res.data.user));

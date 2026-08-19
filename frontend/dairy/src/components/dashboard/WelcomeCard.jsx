@@ -1,6 +1,5 @@
-const WelcomeCard = () => {
-  const ownerName = "Rajesh Ji";
-  const dairyName = "MilkFlow";
+const WelcomeCard = ({ ownerName = "Admin Owner" }) => {
+  const dairyName = "बालाजी दूध डेयरी";
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -9,8 +8,8 @@ const WelcomeCard = () => {
   });
 
   return (
-    <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-2xl p-5 text-white shadow-lg">
-      <p className="text-sm opacity-90">👋 Good Morning</p>
+    <div className="bg-gradient-to-r from-blue-700 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
+      <p className="text-sm opacity-90">👋 नमस्ते</p>
 
       <h2 className="text-2xl font-bold mt-1">
         {ownerName}
@@ -24,7 +23,7 @@ const WelcomeCard = () => {
         {today}
       </p>
 
-      <div className="mt-5 border-t border-green-300 pt-3 flex justify-between">
+      <div className="mt-5 border-t border-blue-400/30 pt-3 flex justify-between">
         <div>
           <p className="text-xs">Today's Collection</p>
           <h3 className="text-xl font-bold">

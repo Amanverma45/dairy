@@ -141,10 +141,10 @@ const Profile = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="py-1.5 px-3 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl border border-white/20 text-xs font-bold transition flex items-center gap-1.5"
+                  className="py-1.5 px-3 bg-white/15 hover:bg-white/25 active:scale-95 rounded-xl border border-white/20 text-xs font-extrabold text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <FaSignOutAlt className="text-xs" />
-                  बाहर जाएं (Logout)
+                  Logout
                 </button>
               </div>
 
